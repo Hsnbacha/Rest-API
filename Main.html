@@ -1,0 +1,211 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="Main.css">
+    <title>Final Project</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body ng-app="myApp" ng-controller="myController">
+
+
+    <!-- REGISTRATION -->
+    <div ng-show="View == 1">
+        <form name="loginForm">
+            <h1>Register</h1>
+            <div class="loginInputSection">
+                <input class="Inputting" name="regusername" type="text" placeholder="Username" ng-model="regusername" required>
+                <input class="Inputting" name="regpassword" type="password" placeholder="Password" ng-model="regpassword" required>
+                <button class="AddBtn" type="submit" ng-click="Register()">Register</button>
+                <button class="AddBtn" ng-click = "View = 2">Login</button>
+            </div>
+        </form>
+        
+    </div>
+
+
+    <!-- LOGIN -->
+    <div ng-show ="View == 2">
+        <form name="loginForm">
+            <h1>LOGIN</h1>
+            <div class="loginInputSection">
+                <input class="Inputting" name="username" type="text" placeholder="username" ng-model="username" required>
+                <input class="Inputting" name="password" type="password" placeholder="password" ng-model="password" required>
+                <button type="submit" class="AddBtn"  ng-click="Login()">Login</button>
+                <button type="submit" class="AddBtn" ng-click="View = 1">Register</button>
+            </div>
+        </form>
+    </div>
+
+
+    <!-- LISTS -->
+    <div class="list" ng-show="View == 3">
+        <h1>{{username}}'s Lists</h1>
+        <div>
+            <input class="Inputting" name="listTitle" type="text" placeholder="List Title" ng-model="listTitle" required>
+            <button class="AddList" type="submit"  ng-click="AddList()">Add List</button>
+            <button class="Logout" ng-click = "Back()">Log Out</button>
+        </div>
+        <ul ng-repeat="x in lists">
+            <input type="checkbox" ng-model="x.done" checked ="x.done" ng-change="listIsDone(x.id)" ><button class="TitleBtn" ng-click="GetTasks(x.id)">{{x.title}}</button>
+            <button class="DeleteBtn" ng-click="DeleteList(x.id)"></button>
+        </ul>
+    </div>
+
+
+    <!-- TASKS -->
+    <div class="list" ng-show="View == 4">
+        <h1>Tasks</h1>
+        <div>
+            <input class="Inputting" name="taskTitle" type="text" placeholder="Task Title" ng-model="taskTitle" required>
+            <button class="AddList" type="submit"  ng-click="AddTask()">Add Task</button>
+            <button class="Logout" ng-click = "Back()">Back</button>
+        </div>
+        <ul ng-repeat="x in tasks">
+            <input type="checkbox" ng-model="x.done" checked ="x.done" ng-change="taskIsDone(x.id)"><button class="TitleBtn">{{x.title}}</button>
+            <button class="DeleteBtn" ng-click="DeleteTask(x.id)"></button>
+        </ul>
+    </div>
+
+
+
+
+</body>
+
+
+
+<script>   
+
+var app = angular.module("myApp", []);
+app.controller('myController', function($scope, $http) {
+
+    //VARIABLES
+    $scope.userID = false;
+    $scope.lists = [];
+    $scope.currentList=[];
+    $scope.tasks = [];
+
+    //LOGIN  
+    $scope.View= 2;
+           
+    $scope.Login=function(){      
+        var url = ("http://localhost:8080/api/users/login?username="+ $scope.username + "&password="+ $scope.password);   
+        $http.get(url).then(function(response){      
+            console.log('Got user')                   
+            $scope.userID = response.data._id;                    
+            $scope.View = 3;    
+            $scope.GetLists($scope.userID);           
+        })       
+    }
+ 
+
+    //REGISTRATION
+    $scope.Register=function(){
+        var url = ("http://localhost:8080/api/users/register?username=" + $scope.regusername + "&password=" + $scope.regpassword);
+        $scope.password = $scope.regpassword;
+        $scope.username = $scope.regusername;
+        $http.post(url).then(function(response){
+            $scope.Login($scope.regusername, $scope.password );
+        })    
+    }
+
+
+    //ADD LIST
+    $scope.AddList = function(){           
+        console.log($scope.listTitle);          
+        var url = ("http://localhost:8080/api/users/lists/" + $scope.userID + "?title=" + $scope.listTitle);           
+        console.log(url);           
+        $http.post(url).then(function(response){               
+            $scope.lists = [];               
+            $scope.GetLists($scope.userID);             
+        })      
+    }
+
+    //GET LIST
+    $scope.GetLists = function(userID){
+        var url = ("http://localhost:8080/api/users/lists/"+ userID);
+        $http.get(url).then(function(response){
+            angular.forEach(response.data, function(value, key){
+                $scope.lists.push({id: value._id, title: value.listTitle, done: value.isDone});  
+            }) 
+        })    
+    }
+
+    //SET LIST AS DONE
+    $scope.listIsDone = function(listID){               
+        var url = ("http://localhost:8080/api/users/setLists/" + listID);               
+        console.log(url);     
+        $http.put(url);          
+    }
+
+    //DELETE LIST
+    $scope.DeleteList = function(listID){
+        var url = ("http://localhost:8080/api/users/lists/" + $scope.userID + "/" + listID);           
+        $http.delete(url).then(function(){                
+            $scope.lists = [];              
+            $scope.GetLists($scope.userID);           
+        })       
+    }
+
+
+    //GOING BACK
+    $scope.Back = function(){
+        if($scope.View > 2){
+            $scope.View--;        
+        }    
+        if($scope.View != 3){        
+            $scope.username = "";           
+            $scope.password = "";            
+            $scope.lists=[];              
+            $scope.currentList, $scope.tasks = [];                 
+        }          
+    }
+
+
+    //SET TASK AS DONE
+    $scope.taskIsDone = function(taskID){               
+        var url = ("http://localhost:8080/api/users/settask/" + taskID);                   
+        $http.put(url);     
+    }
+
+    //CREATE TASK
+    $scope.AddTask = function(){          
+        var url = ("http://localhost:8080/api/users/addTask/" + $scope.currentList + "?title=" + $scope.taskTitle);               
+        $http.post(url).then(function(){        
+            $scope.tasks = [];        
+            $scope.GetTasks($scope.currentList);      
+        })  
+    }
+
+
+    //GET TASKS
+    $scope.GetTasks = function(listID){
+        $scope.tasks = [];
+        $scope.currentList = listID;
+        var url = ("http://localhost:8080/api/users/tasks/" + listID);
+        $scope.View = 4;
+        $http.get(url).then(function(response){
+            angular.forEach(response.data, function(value, key){
+                $scope.tasks.push({id: value._id, title: value.taskTitle, done: value.taskIsDone});  
+            })
+        })    
+    }
+
+    //DELETE TASKS
+    $scope.DeleteTask = function(taskID){                
+        var url = ("http://localhost:8080/api/users/tasks/" + taskID);               
+        $http.delete(url).then(function(){                  
+            $scope.tasks = [];                  
+            $scope.GetTasks($scope.currentList);           
+        })      
+    }
+
+}); 
+
+
+
+</script>
+
+</html>
